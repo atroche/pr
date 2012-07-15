@@ -2,7 +2,7 @@
 (function() {
   var socket;
 
-  socket = io.connect('http://192.168.1.70:3000/');
+  socket = io.connect('/');
 
   socket.on('ready for chat', function() {
     console.log('ready received');
