@@ -1,0 +1,13 @@
+{
+  "name": "peace",
+  "subdomain": "peace",
+  "version": "0.0.0-2",
+  "engines": {
+    "node": "0.8.2"
+  },
+  "dependencies": {
+    "underscore": "1.3.3",
+    "express": "3.0.0beta6",
+    "socket.io": "0.9.6"
+  }
+}

@@ -1,0 +1,41 @@
+<html>
+<head>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/jquery.js"></script>
+  <script src="/client.js"></script>
+
+  <link href="/css/bootstrap.css" rel="stylesheet">
+  <link href="/css/main.css" rel="stylesheet">
+
+  <link href="/img/favicon.ico" rel="icon" type="image/x-icon" />
+</head>
+
+<body>
+<div class="navbar navbar-fixed-top">
+  <div class="navbar-inner">
+    <div class="container">
+      <a class="brand" href="#">Peace Roulette</a>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="row">
+    <div class="span4">
+      <div id="chat-window" style="display:none;">
+        <div id="messages">
+        </div>
+        <form name="messages">
+          <input type="text" name="message" id="message-input" />
+          <a class="btn btn-primary btn-large" id="send-message">Send Message</a>
+        </form>
+      </div>
+
+      <div id="please-wait">
+        Searching for someone to chat with...
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
