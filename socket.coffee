@@ -17,7 +17,8 @@ waitingUsers = []
 
 
 removeFromWaitingList = (id) ->
-  waitingUsers = [u for u in waitingUsers where u.uid != id]
+  console.log "removing " + id + " from waiting list: " + waitingUsers
+  waitingUsers = (u for u in waitingUsers when u.uid != id)
 
 
 logWaitingRoom = ->
@@ -25,45 +26,56 @@ logWaitingRoom = ->
 
 io.sockets.on 'connection', (newUser) ->
   newUser.uid = _.uniqueId()
+  newUser.set 'connected', true
   console.log newUser.uid + " connected"
   logWaitingRoom()
-  unless waitingUsers.length
-    waitingUsers.push newUser
-    console.log "making " + newUser.uid + " wait"
-    logWaitingRoom()
-    newUser.set "waiting", true, ->
-      newUser.emit "please wait"
-    return
+  newUser.on 'nickname given', (name) ->
+    newUser.on 'message_sent', (message) ->
+      newUser.emit 'message_rec', message, name
 
-  newUser.on 'disconnect', ->
-    console.log newUser.uid + " disconnected"
-    newUser.get 'waiting', (err, waiting) ->
-      if waiting
-        console.log "removing " + newUser.uid + " from waiting list"
+    newUser.set 'name', name, ->
+
+      newUser.emit 'got name', name
+
+      newUser.on 'disconnect', ->
+        newUser.set 'connected', false
+        console.log newUser.uid + " disconnected"
+        newUser.get 'partner', (error, partner) ->
+          newUser.get "name", (error, name) ->
+            partner.emit "other person disconnected", name
+            partner.get 'connected', (e, connected) ->
+              if connected
+                waitingUsers.push partner
         removeFromWaitingList newUser.uid
 
+      unless waitingUsers.length
+        waitingUsers.push newUser
+        console.log "making " + newUser.uid + " wait"
+        logWaitingRoom()
+        return
 
-  firstUser = waitingUsers.shift()
 
-  console.log "connecting " + firstUser.uid + " and " + newUser.uid
+      firstUser = waitingUsers.shift()
 
-  broadcastToBoth = (data) ->
-    firstUser.emit "message_rec", data
-    newUser.emit "message_rec", data
+      console.log "connecting " + firstUser.uid + " and " + newUser.uid
 
-  connectUsers = (first, second) ->
-    u.on('message_sent', broadcastToBoth) for u  in [first, second]
+      connectUsers = (first, second) ->
 
-    console.log 'making ' + first.uid + ' ready'
-    first.set "waiting", false, ->
-      first.set "partner_uid", second.uid, ->
-        console.log 'telling ' + first.uid + ' to get ready'
-        first.emit 'ready for chat'
+        handleMessagesOf = (user) ->
+          user.get 'name', (error, name) ->
+            user.get 'partner', (error, partner) ->
+              user.on 'message_sent', (message) ->
+                partner.emit 'message_rec', message, name
 
-    console.log 'making ' + second.uid + ' ready'
-    second.set "waiting", false, ->
-      second.set "partner_uid", first.uid, ->
-        console.log 'telling ' + second.uid + ' to get ready'
-        second.emit 'ready for chat'
+        first.set 'partner', second, ->
+          second.set 'partner', first, ->
+            handleMessagesOf u for u in [first, second]
 
-  connectUsers firstUser, newUser
+            first.get 'name', (e, name) ->
+              second.emit 'found a partner', name
+
+            second.get 'name', (e, name) ->
+              first.emit 'found a partner', name
+
+
+      connectUsers firstUser, newUser

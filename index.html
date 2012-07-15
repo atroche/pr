@@ -2,6 +2,8 @@
 <head>
   <script src="/socket.io/socket.io.js"></script>
   <script src="/jquery.js"></script>
+  <script src="/js/bootstrap.js"></script>
+  <script src="/js/bootbox.js"></script>
   <script src="/client.js"></script>
 
   <link href="/css/bootstrap.css" rel="stylesheet">
@@ -22,17 +24,13 @@
 <div class="container">
   <div class="row">
     <div class="span4">
-      <div id="chat-window" style="display:none;">
+      <div id="chat-window">
         <div id="messages">
         </div>
         <form name="messages">
           <input type="text" name="message" id="message-input" />
           <a class="btn btn-primary btn-large" id="send-message">Send Message</a>
         </form>
-      </div>
-
-      <div id="please-wait">
-        Searching for someone to chat with...
       </div>
     </div>
   </div>
