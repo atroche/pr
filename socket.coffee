@@ -7,7 +7,7 @@ app.use(express.static(__dirname + '/public'))
 app.get '/', (req, res) ->
   res.sendfile(__dirname + '/index.html')
 
-server = app.listen 3000
+server = app.listen 8080
 
 io = require('socket.io').listen(server)
 
