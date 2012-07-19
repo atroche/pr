@@ -8,6 +8,7 @@
 
   $(function() {
     var disableFields, sendMessage, socket;
+    TB.setLogLevel(TB.DEBUG);
     $('#chat-window').hide();
     socket = io.connect('/');
     sendMessage = function(event) {
@@ -31,11 +32,17 @@
       addMessage("Searching for someone to talk to...");
       return disableFields();
     });
-    socket.on('found a partner', function(name) {
+    socket.on('found a partner', function(name, sessionId, token) {
+      var session;
       $('#message-input').attr('disabled', false);
       $('#send-message').toggleClass('disabled');
       addMessage("You are now chatting to: " + name);
-      return console.log('ready received');
+      console.log('ready received');
+      session = TB.initSession(sessionId);
+      session.addEventListener("sessionConnected", function(e) {
+        return session.subscribe(e.streams[0], "subscriber");
+      });
+      return session.connect('16664242', token);
     });
     socket.on('message_rec', function(message, from) {
       return addMessage(from + ": " + message);
@@ -46,10 +53,21 @@
       return disableFields();
     });
     socket.on('connect', function() {
-      console.log('connected');
-      return bootbox.prompt("What's your name?", function(name) {
-        return socket.emit("nickname given", name);
+      return console.log('connected');
+    });
+    socket.on('initial', function(sessionId, token) {
+      var session;
+      console.log('initial!');
+      console.log(sessionId);
+      console.log(token);
+      session = TB.initSession(sessionId);
+      session.addEventListener("sessionConnected", function() {
+        return session.publish("publisher");
       });
+      session.addEventListener("streamCreated", function() {
+        return socket.emit('nickname given', "Someone");
+      });
+      return session.connect('16664242', token);
     });
     $('.navbar').click(function() {
       return socket.disconnect();
