@@ -1,76 +1,84 @@
-addMessage = (message) ->
-  $('#messages').append $("<div>" + message + "</div>")
+RouletteApp = ->
+  apiKey = 16664242
+  mySession = undefined
+  partnerSession = undefined
+  ele = {}
+  TB.setLogLevel TB.DEBUG
+  init = (sessionId, token) ->
+    sessionConnectedHandler = (event) ->
+      console.log "Connected, press allow."
+      publisher = mySession.publish("publisher")
+    streamCreatedHandler = (event) ->
+      stream = event.streams[0]
+      SocketProxy.findPartner mySession.sessionId  if mySession.connection.connectionId is stream.connection.connectionId
+    ele.nextButton = document.getElementById("nextButton")
+    console.log("Connecting...")
+    # ele.nextButton.onclick = ->
+    #   RouletteApp.next()
 
-$ ->
-  TB.setLogLevel(TB.DEBUG);
+    mySession = TB.initSession(sessionId)
+    mySession.addEventListener "sessionConnected", sessionConnectedHandler
+    mySession.addEventListener "streamCreated", streamCreatedHandler
+    mySession.connect apiKey, token
 
-  $('#chat-window').hide()
+  next = ->
+    if partnerSession.connected
+      SocketProxy.disconnectPartners()
+    else
+      SocketProxy.findPartner()
 
-  socket = io.connect('/')
-  sendMessage = (event) ->
-    messageBox = $('input[name=message]')
-    message = messageBox.val()
-    if message
-      socket.emit("message_sent", messageBox.val())
-      messageBox.val('')
-      messageBox.focus()
-    return false
+  disconnectPartner = ->
+    partnerSession.disconnect()
 
-  disableFields = ->
-    $('#message-input').attr('disabled', true)
-    $('#send-message').toggleClass 'disabled'
+  subscribe = (sessionId, token) ->
+    sessionConnectedHandler = (event) ->
+      partnerSession.subscribe event.streams[0], "subscriber"
+    sessionDisconnectedHandler = (event) ->
+      partnerSession.removeEventListener "sessionConnected", sessionConnectedHandler
+      partnerSession.removeEventListener "sessionDisconnected", sessionDisconnectedHandler
+      partnerSession.removeEventListener "streamDestroyed", streamDestroyedHandler
+      SocketProxy.findPartner mySession.sessionId
+      partnerSession = null
+    streamDestroyedHandler = (event) ->
+      partnerSession.disconnect()
+    console.log "Have fun !!!!"
+    partnerSession = TB.initSession(sessionId)
+    partnerSession.addEventListener "sessionConnected", sessionConnectedHandler
+    partnerSession.addEventListener "sessionDisconnected", sessionDisconnectedHandler
+    partnerSession.addEventListener "streamDestroyed", streamDestroyedHandler
+    partnerSession.connect apiKey, token
 
-  socket.on 'got name', (name) ->
-    $('#chat-window').show()
-    addMessage "Welcome, " + name + "! You are based in <b>London</b>."
-    addMessage "Searching for someone to talk to..."
-    disableFields()
+  wait = ->
+    console.log "Nobody to talk to :(.  When someone comes, you'll be the first to know :)."
 
-  socket.on 'found a partner', (name, sessionId, token) ->
-    $('#message-input').attr('disabled', false)
-    $('#send-message').toggleClass 'disabled'
-    addMessage "You are now chatting to: " + name
-    console.log 'ready received'
-
-    session = TB.initSession(sessionId)
-    session.addEventListener "sessionConnected", (e) ->
-      session.subscribe(e.streams[0], "subscriber")
-    session.connect('16664242', token)
-
-
-  socket.on 'message_rec', (message, from) ->
-    addMessage from + ": " + message
-
-  socket.on 'other person disconnected', (name) ->
-    addMessage name + " disconnected"
-    addMessage "Searching for someone to talk to..."
-    disableFields()
-
-  socket.on 'connect', ->
-    console .log 'connected'
-    # bootbox.prompt "What's your name?", (name) ->
-      # socket.emit "nickname given", name
-
-  socket.on 'initial', (sessionId, token) ->
-    console.log 'initial!'
-    console.log sessionId
-    console.log token
-
-
-    session = TB.initSession(sessionId)
-    session.addEventListener "sessionConnected", ->
-      session.publish("publisher")
-
-    session.addEventListener "streamCreated", ->
-      socket.emit 'nickname given', "Someone"
-
-    session.connect('16664242', token)
+  init: init
+  next: next
+  subscribe: subscribe
+  disconnectPartner: disconnectPartner
+  wait: wait
 
 
+RouletteApp = RouletteApp()
 
-  $('.navbar').click ->
-    socket.disconnect()
 
-  $('#send-message').click sendMessage
-  $('form[name=messages]').submit sendMessage
+socket = io.connect('/')
+socket.on "initial", (data) ->
+  console.log data
+  RouletteApp.init data.sessionId, data.token
 
+socket.on "subscribe", (data) ->
+  RouletteApp.subscribe data.sessionId, data.token
+
+socket.on "disconnectPartner", (data) ->
+  RouletteApp.disconnectPartner()
+
+socket.on "empty", (data) ->
+  RouletteApp.wait()
+
+SocketProxy =
+  findPartner: (mySessionId) ->
+    socket.emit "next",
+      sessionId: mySessionId
+
+  disconnectPartners: ->
+    socket.emit "disconnectPartners"
